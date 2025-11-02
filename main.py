@@ -5,11 +5,12 @@ import yt_dlp
 from discord import PCMVolumeTransformer, FFmpegPCMAudio
 import asyncio
 from pytube import Playlist
+import os # هذا الاستيراد ضروري لقراءة متغيرات البيئة
 
-
-TOKEN = '' # Bot Token
-GUILD_ID = '' # Server id
-CHANNEL_ID = '' # channel id ( Voice / Stage )
+# ⚠️ تم إزالة الـ Tokens و الـ IDs من هنا. سيتم قراءتها من بيئة التشغيل (Render)
+TOKEN = os.getenv('DISCORD_TOKEN') # قراءة رمز البوت
+GUILD_ID = os.getenv('DISCORD_GUILD_ID') # قراءة ID الخادم
+CHANNEL_ID = os.getenv('DISCORD_CHANNEL_ID') # قراءة ID القناة
 
 intents = discord.Intents.default()
 intents.messages = True
@@ -22,12 +23,20 @@ with open('playlist.json', 'r') as f:
     playlists = json.load(f)
 
 async def get_voice_client(force_reconnect=False):
-    guild = bot.get_guild(int(GUILD_ID))
+    # يجب تحويل الـ IDs إلى أرقام (integers) قبل الاستخدام
+    try:
+        guild_id_int = int(GUILD_ID)
+        channel_id_int = int(CHANNEL_ID)
+    except (ValueError, TypeError):
+        print("GUILD_ID or CHANNEL_ID is not set correctly in environment variables.")
+        return None
+
+    guild = bot.get_guild(guild_id_int)
     if guild is None:
         print("Guild not found.")
         return None
 
-    channel = guild.get_channel(int(CHANNEL_ID))
+    channel = guild.get_channel(channel_id_int)
     if channel and isinstance(channel, (discord.VoiceChannel, discord.StageChannel)):
         if force_reconnect and guild.voice_client:
             await guild.voice_client.disconnect()
@@ -74,6 +83,7 @@ def download_youtube_audio(url):
     }
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         info = ydl.extract_info(url, download=False)
+        # تأكد من أن الـ URL الذي يتم إرجاعه هو URL الصوت مباشرة
         audio_url = info['url']
         return audio_url
 
@@ -103,5 +113,7 @@ async def play_playlist(voice_client:discord.VoiceClient, playlists):
                     print(f"Error playing URL {url}: {e}")
                 continue
 
+# تشغيل البوت باستخدام الرمز الذي تم قراءته من متغيرات البيئة
 bot.run(TOKEN)
+
 
